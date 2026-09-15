@@ -1,0 +1,6 @@
+{
+  "name": "موقع الفيديوهات بالجودة الكاملة",
+  "description": "منصة لنشر ومشاهدة وتحميل الفيديوهات بدقتها وجودتها الأصلية الكاملة دون أي ضغط أو تقليل وضوح",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
