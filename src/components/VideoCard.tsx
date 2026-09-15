@@ -35,10 +35,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const [copiedDownload, setCopiedDownload] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const streamUrl = `/api/videos/${video.id}/stream`;
-  const webDownloadUrl = `/api/videos/${video.id}/download?quality=web`;
-  const originalDownloadUrl = `/api/videos/${video.id}/download?quality=original`;
-  const posterUrl = `/api/videos/${video.id}/poster`;
+  const streamUrl = video.externalUrl || `/api/videos/${video.id}/stream`;
+  const webDownloadUrl = video.externalUrl || `/api/videos/${video.id}/download?quality=web`;
+  const originalDownloadUrl = video.externalUrl || `/api/videos/${video.id}/download?quality=original`;
+  const posterUrl = video.externalUrl ? undefined : `/api/videos/${video.id}/poster`;
 
   const webSizeText = video.previewSizeBytes
     ? formatFileSize(video.previewSizeBytes)

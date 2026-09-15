@@ -4,12 +4,38 @@ import { AdminModal } from "./components/AdminModal";
 import { VideoUploader } from "./components/VideoUploader";
 import { VideoList } from "./components/VideoList";
 import { VideoRecord } from "./types";
-import { Sparkles, Shield, AlertTriangle } from "lucide-react";
+import { Sparkles, Globe } from "lucide-react";
+
+// Default starter video for GitHub Pages mode
+const DEFAULT_STATIC_VIDEOS: VideoRecord[] = [
+  {
+    id: "vid_demo_sample",
+    title: "عرض تجريبي بدقة عالية 4K (Demo Video)",
+    filename: "sample_4k_demo.mp4",
+    originalName: "4K_High_Fidelity_Sample.mp4",
+    mimeType: "video/mp4",
+    sizeBytes: 154800000,
+    createdAt: new Date().toISOString(),
+    dayName: "اليوم",
+    formattedDate: "فيديو جاهز للعرض",
+    formattedTime: "مباشر",
+    width: 3840,
+    height: 2160,
+    durationSeconds: 60,
+    codec: "h264",
+    bitrateMbps: 20.5,
+    hasPreview: true,
+    previewSizeBytes: 18500000,
+    hasPoster: false,
+    externalUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  },
+];
 
 export default function App() {
   const [videos, setVideos] = useState<VideoRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isStaticMode, setIsStaticMode] = useState(false);
 
   // Admin authentication state
   const [isAdmin, setIsAdmin] = useState(false);
@@ -25,19 +51,33 @@ export default function App() {
     }
   }, []);
 
-  // Fetch videos from database API
+  // Fetch videos from database API, with graceful GitHub Pages fallback
   const fetchVideos = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/videos");
       if (!res.ok) {
-        throw new Error("تعذر جلب قائمة الفيديوهات من الخادم");
+        throw new Error("Server API not available");
       }
       const data = await res.json();
       setVideos(data);
+      setIsStaticMode(false);
     } catch (err: any) {
-      setError(err.message || "حدث خطأ أثناء تحميل الفيديوهات");
+      // Graceful fallback for GitHub Pages (Static Hosting)
+      setIsStaticMode(true);
+      const saved = localStorage.getItem("app_static_videos");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setVideos(parsed.length > 0 ? parsed : DEFAULT_STATIC_VIDEOS);
+        } catch (_) {
+          setVideos(DEFAULT_STATIC_VIDEOS);
+        }
+      } else {
+        setVideos(DEFAULT_STATIC_VIDEOS);
+        localStorage.setItem("app_static_videos", JSON.stringify(DEFAULT_STATIC_VIDEOS));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -60,10 +100,25 @@ export default function App() {
   };
 
   const handleVideoUploaded = (newVideo: VideoRecord) => {
-    setVideos((prev) => [newVideo, ...prev]);
+    setVideos((prev) => {
+      const updated = [newVideo, ...prev];
+      if (isStaticMode) {
+        localStorage.setItem("app_static_videos", JSON.stringify(updated));
+      }
+      return updated;
+    });
   };
 
   const handleDeleteVideo = async (id: string) => {
+    if (isStaticMode) {
+      setVideos((prev) => {
+        const updated = prev.filter((v) => v.id !== id);
+        localStorage.setItem("app_static_videos", JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
+
     try {
       const res = await fetch(`/api/videos/${id}`, {
         method: "DELETE",
@@ -96,16 +151,24 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Lossless Quality Announcement Banner */}
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 text-xs sm:text-sm text-stone-300 flex items-start gap-3 shadow-sm">
-          <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
-            <Sparkles className="w-5 h-5" />
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 text-xs sm:text-sm text-stone-300 flex items-start justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="leading-relaxed">
+              <span className="font-bold text-amber-300 block mb-0.5">
+                منصة تنزيل ومشاهدة الفيديوهات بالجودة الأصلية 100%
+              </span>
+              يمكن للزوار تشغيل الفيديو فوراً في المتصفح بنسخة مخففة، أو تنزيل ملف MP4 الأصلي الكامل بالدقة الفائقة مباشرة إلى الجوال.
+            </div>
           </div>
-          <div className="leading-relaxed">
-            <span className="font-bold text-amber-300 block mb-0.5">
-              موقع تنزيل ملفات الفيديو بالجودة الأصلية 100%
+          {isStaticMode && (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-900 border border-stone-700 text-stone-300 text-xs shrink-0">
+              <Globe className="w-3.5 h-3.5 text-amber-400" />
+              <span>GitHub Pages</span>
             </span>
-            يقوم المشرف برفع ملف الفيديو بأي حجم (600 ميجا، 800 ميجا وأكثر) كملف أصلي، ويقوم الزوار بتنزيل ملف MP4 مباشرة إلى أجهزتهم وفتحه في مشغل الجوال بالدقة الكاملة بدون أي ضغط.
-          </div>
+          )}
         </div>
 
         {/* Video Uploader Form (Visible only for Admin) */}
@@ -113,6 +176,7 @@ export default function App() {
           <VideoUploader
             adminPassword={adminPassword}
             onVideoUploaded={handleVideoUploaded}
+            isStaticMode={isStaticMode}
           />
         )}
 

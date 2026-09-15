@@ -19,6 +19,7 @@ export interface VideoRecord {
   hasPoster?: boolean;
   isProcessing?: boolean;
   isMissing?: boolean;
+  externalUrl?: string;
 }
 
 export interface UploadProgressState {

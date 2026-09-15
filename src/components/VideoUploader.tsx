@@ -1,18 +1,37 @@
 import React, { useState, useRef } from "react";
-import { Upload, Film, CheckCircle2, AlertCircle, X, Sparkles, FileVideo } from "lucide-react";
+import {
+  Upload,
+  Film,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Sparkles,
+  FileVideo,
+  Link,
+  Globe,
+} from "lucide-react";
 import { formatFileSize, UploadProgressState, VideoRecord } from "../types";
 
 interface VideoUploaderProps {
   adminPassword: string;
   onVideoUploaded: (video: VideoRecord) => void;
+  isStaticMode?: boolean;
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
   adminPassword,
   onVideoUploaded,
+  isStaticMode = false,
 }) => {
+  const [uploadMode, setUploadMode] = useState<"file" | "url">(isStaticMode ? "url" : "file");
   const [title, setTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Direct URL state
+  const [directUrl, setDirectUrl] = useState("");
+  const [directResolution, setDirectResolution] = useState<"4k" | "1080p" | "720p">("4k");
+  const [directSizeMB, setDirectSizeMB] = useState("150");
+
   const [uploadState, setUploadState] = useState<UploadProgressState>({
     isUploading: false,
     progress: 0,
@@ -47,6 +66,51 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileSelection(e.dataTransfer.files[0]);
     }
+  };
+
+  // Handle publishing via direct URL (Ideal for GitHub Pages)
+  const handleDirectUrlSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directUrl.trim()) {
+      setUploadState((prev) => ({ ...prev, error: "يرجى إدخال رابط الفيديو المباشر" }));
+      return;
+    }
+
+    const now = new Date();
+    const sizeInBytes = (parseFloat(directSizeMB) || 100) * 1024 * 1024;
+    const videoTitle = title.trim() || "فيديو بدون عنوان";
+
+    const newRecord: VideoRecord = {
+      id: "vid_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+      title: videoTitle,
+      filename: `video_${Date.now()}.mp4`,
+      originalName: `${videoTitle}.mp4`,
+      mimeType: "video/mp4",
+      sizeBytes: sizeInBytes,
+      createdAt: now.toISOString(),
+      dayName: new Intl.DateTimeFormat("ar-EG", { weekday: "long" }).format(now),
+      formattedDate: new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(now),
+      formattedTime: new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "numeric", hour12: true }).format(now),
+      width: directResolution === "4k" ? 3840 : directResolution === "1080p" ? 1920 : 1280,
+      height: directResolution === "4k" ? 2160 : directResolution === "1080p" ? 1080 : 720,
+      durationSeconds: 90,
+      codec: "h264",
+      bitrateMbps: 25.0,
+      hasPreview: true,
+      externalUrl: directUrl.trim(),
+    };
+
+    onVideoUploaded(newRecord);
+    setTitle("");
+    setDirectUrl("");
+    setUploadState({
+      isUploading: false,
+      progress: 100,
+      loadedBytes: sizeInBytes,
+      totalBytes: sizeInBytes,
+      statusText: "تم نشر الفيديو بنجاح!",
+      error: null,
+    });
   };
 
   const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunk size - bypasses proxy limits
@@ -261,10 +325,12 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-stone-100">
-              إرسال ملف فيديو للتنزيل (لوحة المشرف)
+              إضافة ونشر فيديو جديد (لوحة المشرف)
             </h2>
             <p className="text-xs text-stone-400">
-              يُحفظ ملف MP4 بالأصل كما هو (600MB أو 800MB+) ليقوم الزوار بتنزيله وفتحه بهواتفهم
+              {isStaticMode
+                ? "نشر فوري متوافق مع GitHub Pages عبر رابط سحابي مباشر أو ملف"
+                : "يُحفظ ملف MP4 بالأصل كما هو (600MB أو 800MB+) ليقوم الزوار بتنزيله وفتحه بهواتفهم"}
             </p>
           </div>
         </div>
@@ -273,7 +339,122 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         </span>
       </div>
 
-      <form onSubmit={handleUpload} className="space-y-4">
+      {/* Mode Tabs */}
+      <div className="flex items-center gap-2 p-1 bg-stone-950 rounded-xl border border-stone-800 mb-5">
+        <button
+          type="button"
+          onClick={() => setUploadMode("url")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+            uploadMode === "url"
+              ? "bg-amber-500 text-stone-950 shadow-md"
+              : "text-stone-400 hover:text-stone-200"
+          }`}
+        >
+          <Link className="w-3.5 h-3.5" />
+          <span>رابط فيديو سحابي مباشر (موصى به لـ GitHub Pages)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setUploadMode("file")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+            uploadMode === "file"
+              ? "bg-amber-500 text-stone-950 shadow-md"
+              : "text-stone-400 hover:text-stone-200"
+          }`}
+        >
+          <FileVideo className="w-3.5 h-3.5" />
+          <span>رفع ملف مباشر من جهازي</span>
+        </button>
+      </div>
+
+      {uploadMode === "url" ? (
+        /* Direct URL Form (Fast, works anywhere including GitHub Pages) */
+        <form onSubmit={handleDirectUrlSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+              عنوان الفيديو:
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="مثال: مقطع السفر بدقة 4K..."
+              className="w-full px-4 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+              رابط الفيديو المباشر (Direct Video URL):
+            </label>
+            <input
+              type="url"
+              value={directUrl}
+              onChange={(e) => setDirectUrl(e.target.value)}
+              placeholder="https://example.com/video.mp4 أو رابط Google Drive أو Catbox أو Dropbox..."
+              className="w-full px-4 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 placeholder-stone-600 focus:outline-none focus:border-amber-500 text-sm font-mono text-xs"
+              dir="ltr"
+            />
+            <p className="text-[11px] text-stone-500 mt-1">
+              يدعم أي رابط مباشر لملف MP4 أو روابط استضافة سحابية عامة.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                الدقة والجودة:
+              </label>
+              <select
+                value={directResolution}
+                onChange={(e) => setDirectResolution(e.target.value as any)}
+                className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 text-xs focus:outline-none focus:border-amber-500"
+              >
+                <option value="4k">4K UHD (3840×2160)</option>
+                <option value="1080p">FHD (1920×1080)</option>
+                <option value="720p">HD (1280×720)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                حجم الملف التقريبي (ميجابايت):
+              </label>
+              <input
+                type="number"
+                value={directSizeMB}
+                onChange={(e) => setDirectSizeMB(e.target.value)}
+                placeholder="150"
+                className="w-full px-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-stone-200 text-xs focus:outline-none focus:border-amber-500 font-mono"
+              />
+            </div>
+          </div>
+
+          {uploadState.error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-950/50 border border-rose-800 text-rose-400 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{uploadState.error}</span>
+            </div>
+          )}
+
+          {uploadState.statusText && !uploadState.error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-950/50 border border-emerald-800 text-emerald-400 text-xs">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{uploadState.statusText}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+          >
+            <Globe className="w-4 h-4" />
+            <span>نشر الفيديو في الصفحة فوراً</span>
+          </button>
+        </form>
+      ) : (
+        /* File Upload Form (Chunked or Local) */
+        <form onSubmit={handleUpload} className="space-y-4">
         {/* Title input */}
         <div>
           <label className="block text-xs font-semibold text-stone-300 mb-1.5">
@@ -397,6 +578,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           {uploadState.isUploading ? "جاري رفع الفيديو..." : "نشر الفيديو بالجودة الكاملة"}
         </button>
       </form>
+      )}
     </div>
   );
 };
