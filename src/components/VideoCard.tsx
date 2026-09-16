@@ -34,6 +34,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedDownload, setCopiedDownload] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasPlayError, setHasPlayError] = useState(false);
 
   const streamUrl = video.externalUrl || `/api/videos/${video.id}/stream`;
   const webDownloadUrl = video.externalUrl || `/api/videos/${video.id}/download?quality=web`;
@@ -215,19 +216,56 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           {/* In-Browser Player Section */}
           <div className="w-full relative aspect-video max-h-[520px] flex items-center justify-center bg-black overflow-hidden group">
             {isPlaying ? (
-              <video
-                ref={videoRef}
-                src={streamUrl}
-                poster={posterUrl}
-                controls
-                autoPlay
-                preload="metadata"
-                playsInline
-                className="w-full h-full object-contain"
-              >
-                <source src={streamUrl} type="video/mp4" />
-                متصفحك لا يدعم تشغيل الفيديو مباشرة.
-              </video>
+              hasPlayError ? (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-stone-950 text-stone-300 space-y-3">
+                  <AlertTriangle className="w-10 h-10 text-amber-400" />
+                  <p className="text-sm font-semibold text-stone-200">
+                    تعذر البث المباشر داخل المشغل في هذا المتصفح
+                  </p>
+                  <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
+                    يمكنك مشاهدة الفيديو مباشرة في نافذة جديدة أو تنزيل ملف MP4 الكامل لجهازك:
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <a
+                      href={streamUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>فتح الفيديو في نافذة مستقلة</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasPlayError(false);
+                        if (videoRef.current) {
+                          videoRef.current.load();
+                          videoRef.current.play().catch(() => {});
+                        }
+                      }}
+                      className="px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl text-xs"
+                    >
+                      إعادة المحاولة
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={streamUrl}
+                  poster={posterUrl}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  playsInline
+                  onError={() => setHasPlayError(true)}
+                  className="w-full h-full object-contain"
+                >
+                  <source src={streamUrl} type="video/mp4" />
+                  متصفحك لا يدعم تشغيل الفيديو مباشرة.
+                </video>
+              )
             ) : (
               <div
                 onClick={handleStartPlay}

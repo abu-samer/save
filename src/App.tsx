@@ -6,7 +6,7 @@ import { VideoList } from "./components/VideoList";
 import { VideoRecord } from "./types";
 import { Sparkles, Globe } from "lucide-react";
 
-// Default starter video for GitHub Pages mode
+// Default starter video for GitHub Pages mode (High reliability CDN with full CORS)
 const DEFAULT_STATIC_VIDEOS: VideoRecord[] = [
   {
     id: "vid_demo_sample",
@@ -21,13 +21,13 @@ const DEFAULT_STATIC_VIDEOS: VideoRecord[] = [
     formattedTime: "مباشر",
     width: 3840,
     height: 2160,
-    durationSeconds: 60,
+    durationSeconds: 46,
     codec: "h264",
     bitrateMbps: 20.5,
     hasPreview: true,
     previewSizeBytes: 18500000,
-    hasPoster: false,
-    externalUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    hasPoster: true,
+    externalUrl: "https://vjs.zencdn.net/v/oceans.mp4",
   },
 ];
 
@@ -70,7 +70,15 @@ export default function App() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setVideos(parsed.length > 0 ? parsed : DEFAULT_STATIC_VIDEOS);
+          // If the cached demo video is the old googleapis bucket, update to reliable CDN
+          const sanitized = parsed.map((v: VideoRecord) => {
+            if (v.id === "vid_demo_sample" && v.externalUrl?.includes("commondatastorage.googleapis.com")) {
+              return DEFAULT_STATIC_VIDEOS[0];
+            }
+            return v;
+          });
+          setVideos(sanitized.length > 0 ? sanitized : DEFAULT_STATIC_VIDEOS);
+          localStorage.setItem("app_static_videos", JSON.stringify(sanitized));
         } catch (_) {
           setVideos(DEFAULT_STATIC_VIDEOS);
         }

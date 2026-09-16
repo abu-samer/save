@@ -36,16 +36,31 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         body: JSON.stringify({ password: password.trim() }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          onSuccess(password.trim());
+          setPassword("");
+          onClose();
+          return;
+        } else {
+          setError(data.message || "كلمة السر غير صحيحة");
+          return;
+        }
+      } else {
+        // Server returned non-200 (e.g. 404 on GitHub Pages)
+        throw new Error("Server not available");
+      }
+    } catch (err) {
+      // Offline / Static fallback (for GitHub Pages)
+      if (password.trim() === "123456789") {
         onSuccess(password.trim());
         setPassword("");
         onClose();
+        return;
       } else {
-        setError(data.message || "كلمة السر غير صحيحة");
+        setError("كلمة السر غير صحيحة (المحددة هي 123456789)");
       }
-    } catch (err) {
-      setError("تعذر الاتصال بالخادم، يرجى المحاولة لاحقاً");
     } finally {
       setIsLoading(false);
     }
